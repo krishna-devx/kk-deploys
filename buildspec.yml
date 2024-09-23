@@ -1,0 +1,25 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 735902244362.dkr.ecr.ap-south-1.amazonaws.com
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building the Docker image...
+      - docker build -t codebuild:kkdeploy .
+      - docker tag codebuild:kkdeploy 735902244362.dkr.ecr.ap-south-1.amazonaws.com/codebuild:kkdeploy
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker image...
+      - docker push 735902244362.dkr.ecr.ap-south-1.amazonaws.com/codebuild:kkdeploy
+      - echo Writing image definitions file...
+      - printf '[{"name":"nextjs-container","imageUri":"%s"}]' 735902244362.dkr.ecr.ap-south-1.amazonaws.com/codebuild:kkdeploy > imagedefinitions.json
+      - echo Updating ECS service...
+      - aws ecs update-service --cluster kkdeploy --service $ECS_SERVICE_NAME --force-new-deployment
+
+artifacts:
+  files: imagedefinitions.json
